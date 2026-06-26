@@ -196,7 +196,7 @@ LITELLM_MODEL=ollama/qwen3:8b
 - YAML 模式下，Agent 直接复用 LiteLLM `model_list` / `model_name` 路由语义；渠道模式下，优先读取 `AGENT_LITELLM_MODEL`，留空时继承 `LITELLM_MODEL`，再按 `LITELLM_FALLBACK_MODELS` 继续 fallback。
 - 如果你没有启用 YAML / Channels，且 `AGENT_LITELLM_MODEL` 也留空，但本地仍保留 legacy 环境变量，问股 Agent 依然会继承旧配置：`GEMINI_API_KEY + GEMINI_MODEL` -> `gemini/<model>`，`OPENAI_API_KEY + OPENAI_MODEL` -> `openai/<model>`，`ANTHROPIC_API_KEY + ANTHROPIC_MODEL` -> `anthropic/<model>`。
 - 该兼容逻辑只增强“失败时保留后端真实错误原因”和“未配置 LLM 时给出更具体诊断”，**不会**静默删除、清空、迁移或改写你现有的 `GEMINI_*` / `OPENAI_*` / `ANTHROPIC_*` / `LITELLM_*` 配置。
-- 如果当前环境没有任何有效 Agent 模型链路，问股页面会继续按失败语义返回，并直接展示后端真实配置诊断；补齐任一有效模型来源后即可恢复，无需额外执行配置迁移脚本。
+- 如果当前环境没有任何有效 Agent 模型链路，问股页面会继续按失败语义返回，并直接展示后端真实配置诊断：`missing_model` 提示补齐 `AGENT_LITELLM_MODEL`、`LITELLM_MODEL`、`LLM_CHANNELS` 或 legacy provider keys；`agent_mode_disabled` 提示显式 `AGENT_MODE=false` kill-switch 仍在生效。补齐任一有效模型来源，或移除/开启显式开关后即可恢复，无需额外执行配置迁移脚本。
 - 推荐的新配置方式仍然是显式设置 `LITELLM_MODEL` / `AGENT_LITELLM_MODEL` 或使用 `LLM_CHANNELS`；legacy provider keys 目前保留为兼容回退路径，方便旧 `.env`、本地 macOS 开发环境和历史部署平滑继续运行。
 
 ### 问股可见对话上下文压缩

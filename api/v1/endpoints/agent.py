@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
-from src.config import get_config
+from src.config import get_config, get_effective_agent_primary_model
 from src.services.agent_model_service import list_agent_model_deployments
 
 # Tool name -> Chinese display name mapping
@@ -92,6 +92,42 @@ class AgentModelsResponse(BaseModel):
     models: List[AgentModelDeployment]
 
 
+def _agent_unavailable_detail(config) -> Dict[str, str]:
+    explicit_agent_mode = bool(getattr(config, "_agent_mode_explicit", False))
+    agent_mode_enabled = bool(getattr(config, "agent_mode", False))
+    try:
+        has_agent_model = bool(get_effective_agent_primary_model(config))
+    except Exception:
+        has_agent_model = False
+
+    if explicit_agent_mode and not agent_mode_enabled:
+        return {
+            "error": "agent_unavailable",
+            "reason": "agent_mode_disabled",
+            "message": (
+                "Agent mode is explicitly disabled. Set AGENT_MODE=true or "
+                "remove AGENT_MODE=false to enable Agent auto-detection."
+            ),
+        }
+
+    if not has_agent_model:
+        return {
+            "error": "agent_unavailable",
+            "reason": "missing_model",
+            "message": (
+                "No Agent model configured. Set AGENT_LITELLM_MODEL, "
+                "LITELLM_MODEL, LLM_CHANNELS, or provider API keys before "
+                "using Agent."
+            ),
+        }
+
+    return {
+        "error": "agent_unavailable",
+        "reason": "unavailable",
+        "message": "Agent mode is not enabled.",
+    }
+
+
 @router.get("/models", response_model=AgentModelsResponse)
 async def get_agent_models():
     """Get configured Agent model deployments for frontend selection."""
@@ -153,7 +189,7 @@ async def agent_chat(request: ChatRequest):
     config = get_config()
     
     if not config.is_agent_available():
-        raise HTTPException(status_code=400, detail="Agent mode is not enabled")
+        raise HTTPException(status_code=400, detail=_agent_unavailable_detail(config))
         
     session_id = request.session_id or str(uuid.uuid4())
     
@@ -316,7 +352,7 @@ async def agent_research(request: ResearchRequest):
     """
     config = get_config()
     if not config.is_agent_available():
-        raise HTTPException(status_code=400, detail="Agent mode is not enabled")
+        raise HTTPException(status_code=400, detail=_agent_unavailable_detail(config))
 
     question = request.question
     context: Optional[Dict[str, Any]] = None
@@ -384,7 +420,7 @@ async def agent_chat_stream(request: ChatRequest):
     """
     config = get_config()
     if not config.is_agent_available():
-        raise HTTPException(status_code=400, detail="Agent mode is not enabled")
+        raise HTTPException(status_code=400, detail=_agent_unavailable_detail(config))
 
     session_id = request.session_id or str(uuid.uuid4())
     loop = asyncio.get_running_loop()

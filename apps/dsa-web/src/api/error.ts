@@ -167,6 +167,19 @@ function extractErrorCode(data: unknown): string | null {
   return pickString(data.error, data.code);
 }
 
+function extractErrorReason(data: unknown): string | null {
+  if (!isRecord(data)) {
+    return null;
+  }
+
+  const detail = data.detail;
+  if (isRecord(detail)) {
+    return pickString(detail.reason, data.reason);
+  }
+
+  return pickString(data.reason);
+}
+
 export function extractErrorPayloadText(data: unknown): string | null {
   if (typeof data === 'string') {
     return data.trim() || null;
@@ -294,6 +307,7 @@ export function parseApiError(error: unknown): ParsedApiError {
   const status = response?.status;
   const payloadText = extractErrorPayloadText(response?.data);
   const errorCode = extractErrorCode(response?.data);
+  const errorReason = extractErrorReason(response?.data);
   const errorMessage = getErrorMessage(error);
   const causeMessage = getCauseMessage(error);
   const code = getErrorCode(error);
@@ -301,10 +315,15 @@ export function parseApiError(error: unknown): ParsedApiError {
     ?? '请求未成功完成，请稍后重试。';
   const matchText = buildMatchText([rawMessage, errorMessage, causeMessage, code, errorCode, response?.statusText]);
 
-  if (includesAny(matchText, ['agent mode is not enabled', 'agent_mode'])) {
+  if (errorCode === 'agent_unavailable' || includesAny(matchText, ['agent mode is not enabled', 'agent_mode'])) {
+    const message = errorReason === 'missing_model'
+      ? '当前 Agent 没有可用模型，请在设置中配置可用的 Agent 主模型，或配置 LLM 主模型让 Agent 自动继承后再重试。'
+      : errorReason === 'agent_mode_disabled'
+        ? '当前已显式关闭 Agent 模式，请在设置中开启 Agent 模式，或移除 AGENT_MODE=false 后重载配置。'
+        : '当前功能依赖 Agent 模式，请先开启后再重试。';
     return createParsedApiError({
       title: 'Agent 模式未开启',
-      message: '当前功能依赖 Agent 模式，请先开启后再重试。',
+      message,
       rawMessage,
       status,
       category: 'agent_disabled',

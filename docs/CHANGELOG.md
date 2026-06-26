@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [修复] Refs #1718 个股分析输入和历史/任务展示会先从股票池解析裸代码命中的日韩市场条目，`000660`、`005930` 等池内韩股代码可提交并显示为 `.KS` 标的，未命中时再保留默认 A 股语义。
 - [修复] Refs #1718 日韩个股分析在本地历史上下文缺失时会用 YFinance 日线兜底构造 K 线与技术指标上下文，避免报告误称日股/韩股核心行情和技术数据不可用。
 - [修复] Refs #1718 历史列表和筛选统一裸码与日韩后缀码语义，并缓存股票池代码解析，避免旧 `005930` 与新 `005930.KS` 分裂展示或拖慢历史页查询。
+- [修复] 问股 Agent 不可用时返回 `missing_model` / `agent_mode_disabled` 后端诊断，并在 Web 错误提示中区分缺少模型链路和显式关闭 Agent 模式。
 
 - [新功能] #1390 P6 将 DecisionSignal 复用到告警、通知和组合风险：告警触发关联 latest active 信号或创建最小 alert 信号，通知追加低敏信号摘要，持仓风险聚合 active sell/reduce/alert 信号并保持 fail-open。
 - [文档] #1390 P7 新增 DecisionSignal 决策信号专题文档，补齐字段/API/Web/告警通知/组合风险/后验评估、脱敏、迁移与回滚说明，并收口 Web i18n 显示边界。

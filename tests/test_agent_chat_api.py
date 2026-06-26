@@ -96,6 +96,36 @@ def test_agent_chat_forwards_stock_context_to_executor(tmp_path: Path) -> None:
     assert kwargs["context"]["stock_name"] == "匿名标的"
 
 
+def test_agent_chat_reports_missing_agent_model_detail(tmp_path: Path) -> None:
+    config = SimpleNamespace(
+        is_agent_available=lambda: False,
+        _agent_mode_explicit=False,
+        agent_mode=False,
+        agent_litellm_model="",
+        litellm_model="",
+        litellm_fallback_models=[],
+        llm_model_list=[],
+        gemini_api_keys=[],
+        anthropic_api_keys=[],
+        openai_api_keys=[],
+        deepseek_api_keys=[],
+    )
+
+    with patch("api.middlewares.auth.is_auth_enabled", return_value=False):
+        with patch("api.v1.endpoints.agent.get_config", return_value=config):
+            client = TestClient(create_app(static_dir=tmp_path / "static"))
+            response = client.post(
+                "/api/v1/agent/chat",
+                json={"message": "分析 600519", "session_id": "s1"},
+            )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["error"] == "agent_unavailable"
+    assert detail["reason"] == "missing_model"
+    assert "Agent model" in detail["message"]
+
+
 def test_agent_chat_stream_forwards_stock_context_to_executor(tmp_path: Path) -> None:
     executor = MagicMock()
     executor.chat.return_value = SimpleNamespace(
